@@ -1,0 +1,12 @@
+C:\Users\User\projects\chatserver\chatserver\bin\Debug\chatserver.exe.config
+C:\Users\User\projects\chatserver\chatserver\bin\Debug\chatserver.exe
+C:\Users\User\projects\chatserver\chatserver\bin\Debug\chatserver.pdb
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.csprojResolveAssemblyReference.cache
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.csproj.CoreCompileInputs.cache
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.exe
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.pdb
+C:\Users\User\projects\chatserver\chatserver\bin\Debug\MySql.Data.dll
+C:\Users\User\projects\chatserver\chatserver\bin\Debug\Google.Protobuf.dll
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.ServerAdmin.resources
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.csproj.GenerateResource.cache
+C:\Users\User\projects\chatserver\chatserver\obj\Debug\chatserver.csproj.CopyComplete
