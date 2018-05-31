@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
-using MySql.Data.MySqlClient;
-using System.Data.Common;
 
 namespace chatserver
 {
@@ -21,7 +17,7 @@ namespace chatserver
         static void Main(string[] args)
         {
             //analPorn();
-
+            List<int> l = new List<int>();
             var serverObj = new ChatServer();
             serverObj.Listen();
 

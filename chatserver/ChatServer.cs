@@ -19,7 +19,7 @@ namespace chatserver
         public int socketCapacity = 10;
         Socket Server;
         List<Socket> clients;
-        int bufferSize = 256;
+        int bufferSize = 512;
         DbUtils dbHandle;
 
         private void Initialize()
@@ -31,6 +31,7 @@ namespace chatserver
             dbHandle.connect();
             Console.WriteLine("Запуск сервера");
             Server.Bind(endPoint);
+            
         }
         public ChatServer()
         {
@@ -52,8 +53,11 @@ namespace chatserver
                     Socket client = Server.Accept();
                     Console.WriteLine("Подключение " + client.RemoteEndPoint.ToString());
                     clients.Add(client);
-                    Thread clientThread = new Thread(new ParameterizedThreadStart(Process));
-                    clientThread.Start(client);
+                    //Thread clientThread = new Thread(new ParameterizedThreadStart(Process));
+                    var t = new Task(Process,client);
+                    t.ContinueWith((Task) => Console.WriteLine("client is fucked off"));
+                    t.Start();
+                    //clientThread.Start(client);
                 }
             }
             catch (SocketException e)
@@ -72,22 +76,30 @@ namespace chatserver
         }
         private void Process(object arg)
         {
-            MemoryStream stream = new MemoryStream();
+            MemoryStream stream;
             Socket client = (Socket)arg;
             try {
                 byte[] buffer = new byte[bufferSize];
-
-                do
+                while (true)
                 {
-                    int bytes = client.Receive(buffer);
-                    stream.Write(buffer, 0, bytes);
+                    stream = new MemoryStream();
+                    int totalBytes = 0;
+                    Console.Write("took ");
+                    do
+                    {
+                        short bytes = (short)client.Receive(buffer);
+                        stream.Write(buffer, 0, bytes);
+                        Console.Write(bytes+", ");
+                        totalBytes += bytes;
+                    }
+                    while (client.Available > 0);
+                    Console.WriteLine();
+                    Console.WriteLine("Сообщение получено от " + client.RemoteEndPoint.ToString() + "в размере " + totalBytes);
+                    dbRequest request = (dbRequest)DbObject.Deserialize(stream);
+                    stream.Close();
+                    dbResult result = ProcessDbObject(request);
+                    SendDbResult(client, result);
                 }
-                while (client.Available > 0);
-                Console.WriteLine("Сообщение получено от " + client.RemoteEndPoint.ToString());
-                DbObject obj = DbObject.Deserialize(stream);
-                obj = ProcessDbObject(obj);
-                SendDbObject(client, obj);
-
             }
             catch (Exception e)
             {
@@ -95,50 +107,70 @@ namespace chatserver
                 Console.WriteLine("Разъединение " + client.RemoteEndPoint.ToString());
                 client.Shutdown(SocketShutdown.Both);
                 client.Close();
-                stream.Close();
             }
         }
-        private void SendDbObject(Socket client, DbObject obj)
+        private void SendDbResult(Socket client, dbResult result)
         {
-            byte[] bytes = DbObject.Serialize(obj);
+            byte[] bytes = DbObject.Serialize(result);
             MemoryStream stream = new MemoryStream(bytes);
-            byte[] buffer = new byte[bufferSize];
-            while(stream.CanRead)
+            Console.WriteLine("need to send " + bytes.Length + " bytes");
+            int totalBytes = 0;
+            while (stream.Position<stream.Length)
             {
+                byte[] buffer = new byte[bufferSize];
                 int byteCount = stream.Read(buffer, 0, bufferSize);
-                client.Send(buffer);
+                totalBytes += byteCount;
+                client.Send(buffer,byteCount,SocketFlags.None);
             }
+            Console.WriteLine("sent " + totalBytes + " bytes");
         }
-        private DbObject ProcessDbObject(DbObject obj)
+        private dbResult ProcessDbObject(dbRequest request)
         {
+            dbResult result = new dbResult(request.action, request.selectAction, false);
             try
             {
-                switch (obj.selectAction)
+                switch (request.selectAction)
                 {
+                    case dbSelectAction.SELECT_ROLES:
+                        result.objects = dbHandle.GetRoles();
+                        break;
+                    case dbSelectAction.SELECT_CHAT_TYPES:
+                        result.objects = dbHandle.GetChatTypes();
+                        break;
                     case dbSelectAction.SELECT_ALL_USERS:
-                        obj.objects = dbHandle.getAllUsers();
+                        result.objects = dbHandle.getAllUsers(request.currentUser);
                         break;
                 }
-                switch (obj.action)
+                switch (request.action)
                 {
                     case dbAction.ADD_USER:
-                        User newUser = (User)obj.objects[0];
-                        dbHandle.addUser(newUser);
+                        User newUser = (User)request.entity;
+                        if (dbHandle.addUser(request.currentUser,newUser))
+                        {
+                            result.objects = new Entity[] { newUser };
+                        }
+                        break;
+                    case dbAction.VERIFY_USER:
+                        User user = (User)request.entity;
+                        user = dbHandle.fillUserInfo(user.login,user.password);
+                        result.objects = new Entity[] { user };
+                        result.isSuccessful = true;
                         break;
                 }
-                obj.action = dbAction.QUERY_SUCCESS;
+                result.isSuccessful = true;
+                Console.WriteLine("Отправлен результат "+result.ToString());
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                obj.action = dbAction.QUERY_ERROR;
-                obj.objects = null;
+                result.message = e.Message;
+                result.objects = null;
             }
             finally
             {
-                obj.selectAction = dbSelectAction.NONE;
+                
             }
-            return obj;
+            return result;
         }
     }
 }
